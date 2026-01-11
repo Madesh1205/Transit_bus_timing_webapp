@@ -24,7 +24,7 @@ interface BusTiming {
 function App() {
   const [services, setServices] = useState<BusService[]>([]);
   const [timings, setTimings] = useState<BusTiming[]>([]);
-  const [selectedService, setSelectedService] = useState<string>('');
+  const [selectedRoute, setSelectedRoute] = useState<string>('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -43,7 +43,7 @@ function App() {
       } else if (servicesRes.data) {
         setServices(servicesRes.data);
         if (servicesRes.data?.[0]) {
-          setSelectedService(servicesRes.data[0].id);
+          setSelectedRoute(servicesRes.data[0].route);
         }
       }
 
@@ -59,10 +59,10 @@ function App() {
     }
   };
 
-  const selectedBusData = services.find(s => s.id === selectedService);
-  const filteredTimings = selectedService
-    ? timings.filter(t => t.bus_service_id === selectedService)
-    : [];
+  const uniqueRoutes = Array.from(new Set(services.map(s => s.route))).sort();
+  const servicesOnRoute = services.filter(s => s.route === selectedRoute);
+  const serviceIds = servicesOnRoute.map(s => s.id);
+  const filteredTimings = timings.filter(t => serviceIds.includes(t.bus_service_id));
 
   if (loading) {
     return (
@@ -88,63 +88,78 @@ function App() {
 
         <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
           <label className="block text-sm font-semibold text-gray-700 mb-3">
-            Select a Bus Service
+            Select a Route
           </label>
           <select
-            value={selectedService}
-            onChange={(e) => setSelectedService(e.target.value)}
+            value={selectedRoute}
+            onChange={(e) => setSelectedRoute(e.target.value)}
             className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 transition-colors"
           >
-            {services.map(service => (
-              <option key={service.id} value={service.id}>
-                {service.bus_name} - {service.route}
+            {uniqueRoutes.map(route => (
+              <option key={route} value={route}>
+                {route}
               </option>
             ))}
           </select>
         </div>
 
-        {selectedBusData && (
+        {servicesOnRoute.length > 0 && (
           <div className="mb-6 bg-blue-50 border-l-4 border-blue-600 p-4 rounded">
-            <p className="text-gray-700">
-              <span className="font-semibold text-gray-900">{selectedBusData.bus_name}</span>
-              <span className="text-gray-600 mx-2">•</span>
-              <span className="text-gray-600">Route: {selectedBusData.route}</span>
+            <p className="text-sm font-semibold text-gray-900 mb-2">
+              Buses on this route:
             </p>
+            <div className="flex flex-wrap gap-2">
+              {servicesOnRoute.map(service => (
+                <span
+                  key={service.id}
+                  className="bg-white px-3 py-1 rounded-full text-sm font-medium text-blue-600 border border-blue-200"
+                >
+                  {service.bus_name}
+                </span>
+              ))}
+            </div>
           </div>
         )}
 
         <div className="space-y-3">
           {filteredTimings.length > 0 ? (
-            filteredTimings.map(timing => (
-              <div
-                key={timing.id}
-                className="bg-white rounded-lg shadow hover:shadow-md transition-shadow p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
-              >
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <MapPin className="w-4 h-4 text-blue-600" />
-                    <p className="font-semibold text-gray-900">{timing.stop}</p>
+            filteredTimings.map(timing => {
+              const busService = services.find(s => s.id === timing.bus_service_id);
+              return (
+                <div
+                  key={timing.id}
+                  className="bg-white rounded-lg shadow hover:shadow-md transition-shadow p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Bus className="w-4 h-4 text-blue-600" />
+                      <p className="font-semibold text-blue-600">{busService?.bus_name}</p>
+                    </div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <MapPin className="w-4 h-4 text-gray-400" />
+                      <p className="font-semibold text-gray-900">{timing.stop}</p>
+                    </div>
+                    <p className="text-sm text-gray-500">
+                      {timing.runs_daily ? 'Runs Daily' : 'Selected Days'}
+                    </p>
                   </div>
-                  <p className="text-sm text-gray-500">
-                    {timing.runs_daily ? 'Runs Daily' : 'Selected Days'}
-                  </p>
+                  <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-lg">
+                    <Clock className="w-4 h-4 text-blue-600" />
+                    <p className="font-bold text-blue-600">{timing.time}</p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-lg">
-                  <Clock className="w-4 h-4 text-blue-600" />
-                  <p className="font-bold text-blue-600">{timing.time}</p>
-                </div>
-              </div>
-            ))
+              );
+            })
           ) : (
             <div className="bg-white rounded-lg shadow p-8 text-center">
               <Bus className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500">No timings available for this service</p>
+              <p className="text-gray-500">No timings available for this route</p>
             </div>
           )}
         </div>
 
         <div className="mt-8 text-center text-sm text-gray-600">
-          <p>Total Bus Services: {services.length}</p>
+          <p>Total Routes: {uniqueRoutes.length}</p>
         </div>
       </div>
     </div>
